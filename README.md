@@ -1,7 +1,15 @@
 # Vaadin Login App
 
-This project can be used as a starting point to create your own Vaadin application with Spring Boot.
-It contains all the necessary configuration and some placeholder files to get you started.
+This is a demo project showing how to use Vaadin + Persistence Session with Spring Security and Redis.
+
+## Login View
+![login-view.png](screenshots%2Flogin-view.png)
+
+## Sessions Created after Logging in
+![redis-session.png](screenshots%2Fredis-session.png)
+
+## Secured View
+![secured-view.png](screenshots%2Fsecured-view.png)
 
 ## Running the application
 
