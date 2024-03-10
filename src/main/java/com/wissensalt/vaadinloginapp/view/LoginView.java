@@ -1,6 +1,5 @@
-package com.wissensalt;
+package com.wissensalt.vaadinloginapp.view;
 
-import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.ComponentEventListener;
 import com.vaadin.flow.component.login.AbstractLogin;
 import com.vaadin.flow.component.login.LoginForm;
@@ -11,16 +10,22 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.VaadinRequest;
+import com.vaadin.flow.server.VaadinResponse;
 import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
-import com.vaadin.flow.spring.security.VaadinAwareSecurityContextHolderStrategy;
 import com.vaadin.flow.theme.lumo.LumoUtility.Background;
+import com.wissensalt.vaadinloginapp.service.SecurityService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.time.Duration;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -30,21 +35,24 @@ import org.springframework.security.web.context.SecurityContextRepository;
 @Route("login")
 @PageTitle("login")
 @AnonymousAllowed
-public class LoginView extends VerticalLayout implements BeforeEnterObserver {
+public class LoginView extends VerticalLayout
+    implements BeforeEnterObserver {
 
   private final LoginForm loginForm;
   private final transient UserDetailsManager userDetailsManager;
   private final transient AuthenticationManager authenticationManager;
-  private final RedisTemplate<String, Object> redisTemplate;
-  private final SecurityService securityService;
-//  private final SecurityContextRepository securityContextRepository;
+  private final transient RedisTemplate<String, Object> redisTemplate;
+  private final transient SecurityService securityService;
+  private final transient SecurityContextRepository securityContextRepository;
 
   public LoginView(
       UserDetailsManager userDetailsManager,
       AuthenticationManager authenticationManager,
       RedisTemplate<String, Object> redisTemplate,
-      SecurityService securityService
+      SecurityService securityService,
+      SecurityContextRepository securityContextRepository
   ) {
+    this.securityContextRepository = securityContextRepository;
     this.userDetailsManager = userDetailsManager;
     this.authenticationManager = authenticationManager;
     this.redisTemplate = redisTemplate;
@@ -96,12 +104,13 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
       }
 
       if (authentication != null) {
-        SecurityContextHolder.createEmptyContext();
-//        SecurityContextHolder.setStrategyName(VaadinAwareSecurityContextHolderStrategy.class.getName());
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+        final SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
+        securityContext.setAuthentication(authentication);
         final String sessionId = VaadinSession.getCurrent().getSession().getId();
-        VaadinSession.getCurrent().setAttribute(sessionId, userDetails);
-        redisTemplate.opsForValue().set(sessionId, userDetails);
+        redisTemplate.opsForValue().set(sessionId, userDetails, Duration.ofMinutes(30));
+        securityContextRepository.saveContext(securityContext,
+            (HttpServletRequest) VaadinRequest.getCurrent(),
+            (HttpServletResponse) VaadinResponse.getCurrent());
         loginForm.getUI().ifPresent(ui -> ui.navigate(""));
       }
     };

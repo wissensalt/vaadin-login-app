@@ -1,4 +1,4 @@
-package com.wissensalt;
+package com.wissensalt.vaadinloginapp.service;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -14,6 +14,7 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -22,6 +23,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class SessionFilter extends OncePerRequestFilter {
 
   private final RedisTemplate<String, Object> redisTemplate;
+  private final SecurityContextRepository securityContextRepository;
 
   @Override
   protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -29,8 +31,11 @@ public class SessionFilter extends OncePerRequestFilter {
     final HttpSession session = request.getSession();
     final String sessionId = session.getId();
     final UserDetails userDetails = (UserDetails) redisTemplate.opsForValue().get(sessionId);
-    SecurityContextHolder.createEmptyContext();
-    if (userDetails != null) {
+    if (userDetails == null) {
+      SecurityContextHolder.clearContext();
+      final SecurityContext emptyContext = SecurityContextHolder.createEmptyContext();
+      securityContextRepository.saveContext(emptyContext, request, response);
+    } else {
       final Authentication authentication = new UsernamePasswordAuthenticationToken(
           userDetails, userDetails.getPassword(), userDetails.getAuthorities());
 

@@ -1,4 +1,4 @@
-package com.wissensalt;
+package com.wissensalt.vaadinloginapp.view;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.H1;
@@ -7,6 +7,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouterLink;
+import com.wissensalt.vaadinloginapp.service.SecurityService;
 import jakarta.annotation.security.RolesAllowed;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
@@ -16,9 +17,7 @@ import org.springframework.security.core.userdetails.User;
 @RolesAllowed({"ROLE_ADMIN", "ROLE_USER"})
 public class MainView extends VerticalLayout {
 
-  private final SecurityService securityService;
   public MainView(SecurityService securityService) {
-    this.securityService = securityService;
     final H1 h1 = new H1("This is Secured Main View");
     add(h1);
     final Authentication authentication = securityService.getUser();

@@ -1,7 +1,7 @@
-package com.wissensalt;
+package com.wissensalt.vaadinloginapp.config;
 
-import com.vaadin.flow.spring.security.VaadinSavedRequestAwareAuthenticationSuccessHandler;
 import com.vaadin.flow.spring.security.VaadinWebSecurity;
+import com.wissensalt.vaadinloginapp.view.LoginView;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -12,6 +12,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.provisioning.UserDetailsManager;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @EnableWebSecurity
@@ -21,15 +22,14 @@ public class SecurityConfig extends VaadinWebSecurity {
   @Override
   protected void configure(HttpSecurity http) throws Exception {
     http
+        .securityContext(httpSecuritySecurityContextConfigurer ->
+            httpSecuritySecurityContextConfigurer
+                .securityContextRepository(httpSessionSecurityContextRepository()))
         .authorizeHttpRequests(
-            auth -> {
-              auth.requestMatchers(new AntPathRequestMatcher("/public/**")).permitAll();
-//              auth.requestMatchers(new AntPathRequestMatcher("/admin")).hasAnyRole("ADMIN");
-            })
+            auth -> auth.requestMatchers(new AntPathRequestMatcher("/public/**")).permitAll())
         .sessionManagement(
             session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                .invalidSessionUrl("/logout?expired")
                 .maximumSessions(1)
                 .maxSessionsPreventsLogin(true));
 
@@ -38,11 +38,16 @@ public class SecurityConfig extends VaadinWebSecurity {
   }
 
   @Bean
+  public HttpSessionSecurityContextRepository httpSessionSecurityContextRepository() {
+    return new HttpSessionSecurityContextRepository();
+  }
+
+  @Bean
   public UserDetailsManager userDetailsManager(BCryptPasswordEncoder bCryptPasswordEncoder) {
     final String password = bCryptPasswordEncoder.encode("password");
-    final UserDetails userAdmin = User.withUsername("admin").password(password)
+    final UserDetails userAdmin = User.withUsername("john").password(password)
         .roles("ADMIN").build();
-    final UserDetails userRegular = User.withUsername("user").password(password)
+    final UserDetails userRegular = User.withUsername("david").password(password)
         .roles("USER").build();
 
     return new InMemoryUserDetailsManager(userAdmin, userRegular);
