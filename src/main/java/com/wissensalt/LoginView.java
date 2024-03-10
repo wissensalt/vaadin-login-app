@@ -1,5 +1,6 @@
 package com.wissensalt;
 
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.ComponentEventListener;
 import com.vaadin.flow.component.login.AbstractLogin;
 import com.vaadin.flow.component.login.LoginForm;
@@ -12,7 +13,10 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
+import com.vaadin.flow.spring.security.VaadinAwareSecurityContextHolderStrategy;
 import com.vaadin.flow.theme.lumo.LumoUtility.Background;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -21,6 +25,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.provisioning.UserDetailsManager;
+import org.springframework.security.web.context.SecurityContextRepository;
 
 @Route("login")
 @PageTitle("login")
@@ -30,13 +35,20 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
   private final LoginForm loginForm;
   private final transient UserDetailsManager userDetailsManager;
   private final transient AuthenticationManager authenticationManager;
+  private final RedisTemplate<String, Object> redisTemplate;
+  private final SecurityService securityService;
+//  private final SecurityContextRepository securityContextRepository;
 
   public LoginView(
       UserDetailsManager userDetailsManager,
-      AuthenticationManager authenticationManager
+      AuthenticationManager authenticationManager,
+      RedisTemplate<String, Object> redisTemplate,
+      SecurityService securityService
   ) {
     this.userDetailsManager = userDetailsManager;
     this.authenticationManager = authenticationManager;
+    this.redisTemplate = redisTemplate;
+    this.securityService = securityService;
     this.addClassName(Background.CONTRAST);
     this.setSizeFull();
     setJustifyContentMode(JustifyContentMode.CENTER);
@@ -84,8 +96,12 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
       }
 
       if (authentication != null) {
+        SecurityContextHolder.createEmptyContext();
+//        SecurityContextHolder.setStrategyName(VaadinAwareSecurityContextHolderStrategy.class.getName());
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        VaadinSession.getCurrent().setAttribute("authenticated", userDetails);
+        final String sessionId = VaadinSession.getCurrent().getSession().getId();
+        VaadinSession.getCurrent().setAttribute(sessionId, userDetails);
+        redisTemplate.opsForValue().set(sessionId, userDetails);
         loginForm.getUI().ifPresent(ui -> ui.navigate(""));
       }
     };
@@ -95,6 +111,16 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
   public void beforeEnter(BeforeEnterEvent beforeEnterEvent) {
     if (beforeEnterEvent.getLocation().getQueryParameters().getParameters().containsKey("error")) {
       loginForm.setError(true);
+    }
+
+    final Authentication authentication = securityService.getUser();
+
+    if (beforeEnterEvent.getNavigationTarget().equals(LoginView.class)) {
+      if (authentication != null && !(authentication instanceof AnonymousAuthenticationToken)) {
+        beforeEnterEvent.forwardTo(MainView.class);
+      }
+    } else {
+      beforeEnterEvent.forwardTo(LoginView.class);
     }
   }
 }

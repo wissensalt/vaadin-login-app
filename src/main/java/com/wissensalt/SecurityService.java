@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -36,14 +37,10 @@ public class SecurityService {
     return new BCryptPasswordEncoder();
   }
 
-  public UserDetails getUser() {
+  public Authentication getUser() {
     final SecurityContext securityContext = SecurityContextHolder.getContext();
-    final Object principal = securityContext.getAuthentication().getPrincipal();
-    if (principal == null) {
-      return null;
-    }
 
-    return (UserDetails) principal;
+    return securityContext.getAuthentication();
   }
 
   public void logout() {
